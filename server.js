@@ -4,6 +4,7 @@ const multer = require("multer");
 // const formidable = require("formidable");
 // var bodyParser = require("body-parser");
 const multipart = require("connect-multiparty");
+const { getYoutubeAudio } = require("./functions/getYoutubeAudio");
 const multipartMiddleware = multipart();
 const app = express();
 const upload = multer();
@@ -13,12 +14,21 @@ const PORT = 8889;
 app.use(cors());
 app.use(express.json());
 
-app.get("/message", (req, res) => {
-  res.json({ message: "Hello from server!" });
-});
-
 app.get("/", (req, res) => {
   res.json({ message: "no message" });
+});
+
+app.get("/audio-file", (req, res) => {
+  const { link } = req.query;
+  console.log("req.query: ", req.query);
+  console.log("req.body: ", req.body);
+  if (!link) {
+    res.status(400).json({ message: "No link provided" });
+  }
+
+  const audioFileRes = getYoutubeAudio(link);
+
+  res.json({ message: "Hello from server!" });
 });
 
 // part multipart/form-data
