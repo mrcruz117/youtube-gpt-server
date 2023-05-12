@@ -10,11 +10,24 @@ const filePath = path.join(__dirname, "audio.mp4");
 const model = "whisper-1";
 
 async function getYoutubeAudio(link) {
-  //   let info = await ytdl.getInfo(link);
-  //   let audioFormats = ytdl.filterFormats(info.formats, "audioonly");
-
-  //   console.log("Formats with only audio: " + audioFormats.length);
   const audioFile = await writeToFile(link);
+
+  console.log("After writeToFile");
+
+  const stats = fs.statSync(filePath);
+  const fileSizeInBytes = stats.size;
+  const fileExtension = path.extname(filePath).toLowerCase();
+
+  if (fileExtension !== ".mp4") {
+    console.error(`Invalid file extension: ${fileExtension}`);
+    return;
+  }
+
+  if (fileSizeInBytes > 100 * 1024 * 1024) {
+    console.error(`File size is too large: ${fileSizeInBytes} bytes`);
+    return;
+  }
+
   console.log("audioFile: ", audioFile);
 
   // send audio file to openai
@@ -22,7 +35,7 @@ async function getYoutubeAudio(link) {
   formData.append("model", model);
   console.log("filePath: ", filePath);
   formData.append("file", fs.createReadStream(filePath));
-//   return;
+  //   return;
   const openaiRes = await axios
     .post("https://api.openai.com/v1/audio/transcriptions", formData, {
       headers: {
@@ -37,26 +50,20 @@ async function getYoutubeAudio(link) {
   console.log("openaiRes: ", openaiRes);
 
   // delete audio file
-//   fs.unlinkSync(filePath);
+  fs.unlinkSync(filePath);
 }
 
 function writeToFile(link) {
   return new Promise((resolve, reject) => {
-    // const audioFile = ytdl(link, { filter: "audioonly" })
     const audioFile = ytdl(link, {
       filter: (format) => {
-        // console.log("format: ", format);
         return format.container === "mp4" && format.hasVideo === false;
       },
     })
       .pipe(fs.createWriteStream(filePath))
-      .on("finish", resolve("complete"));
-    console.log("after resolve");
-    audioFile.end();
-    audioFile.on("finish", () => {
-      resolve("complete");
-    }); // not sure why you want to pass a boolean
-    audioFile.on("error", reject); // don't forget this!
+      .on("finish", () => resolve("complete"));
+    // console.log("after resolve");
+    audioFile.on("error", reject);
   });
 }
 
