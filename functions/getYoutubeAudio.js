@@ -1,70 +1,68 @@
 require("dotenv").config();
+const ytdl = require("ytdl-core");
+const axios = require("axios");
 const FormData = require("form-data");
 const fs = require("fs");
-const axios = require("axios");
 const path = require("path");
+const ffmpeg = require("fluent-ffmpeg");
+const ffmpegPath = require("ffmpeg-static");
 
-const ytdl = require("ytdl-core");
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const filePath = path.join(__dirname, "audio.mp4");
-const model = "whisper-1";
+async function downloadAudioFiles(link) {
+  try {
+    if (!link) throw new Error("No link provided");
 
-async function getYoutubeAudio(link) {
-  const audioFile = await writeToFile(link);
+    const info = await ytdl.getInfo(link);
 
-  console.log("After writeToFile");
-
-  const stats = fs.statSync(filePath);
-  const fileSizeInBytes = stats.size;
-  const fileExtension = path.extname(filePath).toLowerCase();
-
-  if (fileExtension !== ".mp4") {
-    console.error(`Invalid file extension: ${fileExtension}`);
-    return;
-  }
-
-  if (fileSizeInBytes > 100 * 1024 * 1024) {
-    console.error(`File size is too large: ${fileSizeInBytes} bytes`);
-    return;
-  }
-
-  console.log("audioFile: ", audioFile);
-
-  // send audio file to openai
-  const formData = new FormData();
-  formData.append("model", model);
-  console.log("filePath: ", filePath);
-  formData.append("file", fs.createReadStream(filePath));
-  //   return;
-  const openaiRes = await axios
-    .post("https://api.openai.com/v1/audio/transcriptions", formData, {
-      headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-        "Content-Type": `multipart/form-data; boundary=${formData._boundary}`,
-      },
-    })
-    .catch((err) => {
-      console.log("err: ", err.response.data);
+    // console.log("info: ", info.formats);
+    const audio = ytdl.chooseFormat(info.formats, {
+      itag: 140,
     });
 
-  console.log("openaiRes: ", openaiRes);
+    console.log("AUDIO: ", audio);
 
-  // delete audio file
-  fs.unlinkSync(filePath);
+    const fileName = `${info.videoDetails.title.replace(
+      /[^a-z0-9]/gi,
+      "_"
+    )}.mp3`;
+
+    let currentIndex = 0;
+    const duration = 300;
+    const outputDir = "./output/";
+
+    if (!fs.existsSync(outputDir)) {
+      fs.mkdirSync(outputDir);
+    }
+
+    const processAudio = (time) => {
+      return new Promise((resolve, reject) => {
+        currentIndex += 1;
+        const outputName = `${outputDir}${fileName}_${currentIndex}.mp3`;
+
+        ffmpeg(audio.url)
+          .inputOptions("-ss", time.toString())
+          .duration(duration)
+          .audioCodec("libmp3lame")
+          .toFormat("mp3")
+          .on("error", (error) => {
+            console.log(error);
+            reject(error);
+          })
+          .save(outputName)
+          .on("end", () => {
+            console.log(`Finished chunk ${currentIndex}`);
+            resolve();
+          });
+      });
+    };
+
+    let time = 0;
+    while (time < parseInt(info.videoDetails.lengthSeconds)) {
+      await processAudio(time);
+      time += duration;
+    }
+  } catch (error) {
+    console.log(error);
+  }
 }
 
-function writeToFile(link) {
-  return new Promise((resolve, reject) => {
-    const audioFile = ytdl(link, {
-      filter: (format) => {
-        return format.container === "mp4" && format.hasVideo === false;
-      },
-    })
-      .pipe(fs.createWriteStream(filePath))
-      .on("finish", () => resolve("complete"));
-    // console.log("after resolve");
-    audioFile.on("error", reject);
-  });
-}
-
-module.exports = { getYoutubeAudio };
+module.exports = { downloadAudioFiles };

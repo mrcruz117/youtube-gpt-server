@@ -4,7 +4,7 @@ const multer = require("multer");
 // const formidable = require("formidable");
 // var bodyParser = require("body-parser");
 const multipart = require("connect-multiparty");
-const { getYoutubeAudio } = require("./functions/getYoutubeAudio");
+const { downloadAudioFiles } = require("./functions/getYoutubeAudio");
 const multipartMiddleware = multipart();
 const app = express();
 const upload = multer();
@@ -18,17 +18,32 @@ app.get("/", (req, res) => {
   res.json({ message: "no message" });
 });
 
-app.get("/audio-file", (req, res) => {
+app.get("/audio-file", async (req, res) => {
   const { link } = req.query;
+
   console.log("req.query: ", req.query);
   console.log("req.body: ", req.body);
+
   if (!link) {
     res.status(400).json({ message: "No link provided" });
+    return;
   }
 
-  const audioFileRes = getYoutubeAudio(link);
-
-  res.json({ message: "Hello from server!" });
+  try {
+    const res = await downloadAudioFiles(link);
+    console.log("res: ", res);
+    // res.sendFile(filePath, (error) => {
+    //   if (error) {
+    //     console.error("Error sending audio file:", error);
+    //     res.status(500).json({ message: "Error sending audio file" });
+    //   } else {
+    //     console.log("Transcript:", transcript);
+    //   }
+    // });
+  } catch (error) {
+    console.error("Error processing audio file:", error);
+    res.status(500).json({ message: "Error processing audio file" });
+  }
 });
 
 // part multipart/form-data
