@@ -11,6 +11,7 @@ async function downloadAudioFiles(link) {
   try {
     if (!link) throw new Error("No link provided");
 
+    console.log('running getInfo')
     const info = await ytdl.getInfo(link);
 
     // console.log("info: ", info.formats);

@@ -1,3 +1,6 @@
+process.env.PATH += ":/usr/local/bin/";
+
+
 const express = require("express");
 const cors = require("cors");
 const multer = require("multer");
