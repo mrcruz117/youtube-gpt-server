@@ -1,66 +1,71 @@
-require("dotenv").config();
-const ytdl = require("ytdl-core");
-const axios = require("axios");
-const FormData = require("form-data");
-const fs = require("fs");
-const path = require("path");
-const ffmpeg = require("fluent-ffmpeg");
-const ffmpegPath = require("ffmpeg-static");
+const ytdl = require('ytdl-core');
+const fs = require('fs').promises;
+const path = require('path');
+const ffmpeg = require('fluent-ffmpeg');
+const ffmpegPath = require('ffmpeg-static');
 
 async function downloadAudioFiles(link) {
   try {
-    if (!link) throw new Error("No link provided");
+    if (!link) throw new Error('No link provided');
+    const outputDir = './output/';
 
-    console.log('running getInfo')
+    await fs.rmdir(outputDir, { recursive: true });
+    console.log('Cleared the content of ./output directory');
+    await fs.mkdir(outputDir);
+    console.log('Created output directory');
+
+    console.log('running getInfo');
     const info = await ytdl.getInfo(link);
-
-    // console.log("info: ", info.formats);
     const audio = ytdl.chooseFormat(info.formats, {
-      itag: 140,
+      filter: (format) =>
+        format.hasAudio && !format.hasVideo && format.itag === 140,
     });
 
-    console.log("AUDIO: ", audio);
+    console.log('AUDIO: ', audio);
 
     const fileName = `${info.videoDetails.title.replace(
       /[^a-z0-9]/gi,
-      "_"
+      '_'
     )}.mp3`;
+    const duration = 120;
 
-    let currentIndex = 0;
-    const duration = 300;
-    const outputDir = "./output/";
+    console.log('Processing Audio...');
+    const processAudio = async (currentIndex, time) => {
+      const outputName = `${outputDir}${currentIndex}_${fileName}.mp3`;
 
-    if (!fs.existsSync(outputDir)) {
-      fs.mkdirSync(outputDir);
-    }
-
-    const processAudio = (time) => {
-      return new Promise((resolve, reject) => {
-        currentIndex += 1;
-        const outputName = `${outputDir}${fileName}_${currentIndex}.mp3`;
-
+      await new Promise((resolve, reject) => {
         ffmpeg(audio.url)
-          .inputOptions("-ss", time.toString())
+          .inputOptions('-ss', time.toString())
           .duration(duration)
-          .audioCodec("libmp3lame")
-          .toFormat("mp3")
-          .on("error", (error) => {
-            console.log(error);
-            reject(error);
+          .audioCodec('libmp3lame')
+          .toFormat('mp3')
+          .on('error', reject)
+          .on('progress', (progress) => {
+            const percentage = Math.floor(progress.percent * 10);
+
+            if (
+              percentage % 5 === 0 &&
+              percentage !== 0 &&
+              percentage !== 100
+            ) {
+              console.log(`${outputName} progress: ${percentage}%`);
+            }
           })
-          .save(outputName)
-          .on("end", () => {
+          .on('end', () => {
             console.log(`Finished chunk ${currentIndex}`);
             resolve();
-          });
+          })
+          .save(outputName);
       });
     };
 
-    let time = 0;
-    while (time < parseInt(info.videoDetails.lengthSeconds)) {
-      await processAudio(time);
-      time += duration;
-    }
+    const totalDuration = parseInt(info.videoDetails.lengthSeconds);
+    const chunkCount = Math.ceil(totalDuration / duration);
+    const chunkIndexes = Array.from({ length: chunkCount }, (_, i) => i + 1);
+
+    await Promise.all(
+      chunkIndexes.map((index) => processAudio(index, (index - 1) * duration))
+    );
   } catch (error) {
     console.log(error);
   }
