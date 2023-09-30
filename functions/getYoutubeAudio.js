@@ -40,17 +40,7 @@ async function downloadAudioFiles(link) {
           .audioCodec('libmp3lame')
           .toFormat('mp3')
           .on('error', reject)
-          .on('progress', (progress) => {
-            const percentage = Math.floor(progress.percent * 10);
 
-            if (
-              percentage % 5 === 0 &&
-              percentage !== 0 &&
-              percentage !== 100
-            ) {
-              console.log(`${outputName} progress: ${percentage}%`);
-            }
-          })
           .on('end', () => {
             console.log(`Finished chunk ${currentIndex}`);
             resolve();
