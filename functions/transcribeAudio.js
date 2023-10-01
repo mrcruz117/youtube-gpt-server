@@ -50,23 +50,29 @@ async function transcribeAudio(fileStr) {
 async function transcribeAndConcatAudioFiles() {
   try {
     const files = await readdir(OUTPUT_DIR);
+    // sort files by first number in filename before _
+    files.sort((a, b) => {
+      const aNum = parseInt(a.split('_')[0]);
+      const bNum = parseInt(b.split('_')[0]);
+      return aNum - bNum;
+    });
     console.log('files: ', files);
 
     let transcriptions = '';
 
     for (const file of files) {
       let transcription = await transcribeAudio(path.join(OUTPUT_DIR, file));
+      console.log(`${file} transcribed!`);
       transcriptions += transcription + ' ';
       // sleeping for a second after each transcribe request to respect Rate Limits
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
 
-    console.log('transcriptions: ', transcriptions);
-
     await writeFile(
       path.join(TRANSCRIPTS_DIR, 'transcriptions.txt'),
       transcriptions.trim()
     );
+    return transcriptions;
   } catch (error) {
     console.error(`Error in transcribeAndConcatAudioFiles: ${error}`);
   }

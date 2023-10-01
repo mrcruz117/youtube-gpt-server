@@ -37,8 +37,8 @@ app.get('/audio-file', async (req, res) => {
   try {
     const dlRes = await downloadAudioFiles(link);
 
-    const transcribe = await transcribeAndConcatAudioFiles();
-    res.json({ message: 'Audio file downloaded' });
+    const transcription = await transcribeAndConcatAudioFiles();
+    res.json({ message: 'Audio file downloaded', transcription });
   } catch (error) {
     console.error('Error processing audio file:', error);
     res.status(500).json({ message: 'Error processing audio file' });
