@@ -27,6 +27,8 @@
     "ytdl-core": "^4.11.5"
   },
   "devDependencies": {
-    "nodemon": "^2.0.22"
+    "eslint": "^8.50.0",
+    "nodemon": "^2.0.22",
+    "prettier": "^3.0.3"
   }
 }

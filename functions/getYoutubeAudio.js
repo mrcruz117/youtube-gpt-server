@@ -27,7 +27,7 @@ async function downloadAudioFiles(link) {
       /[^a-z0-9]/gi,
       '_'
     )}.mp3`;
-    const duration = 120;
+    const duration = 300;
 
     console.log('Processing Audio...');
     const processAudio = async (currentIndex, time) => {
